@@ -647,6 +647,11 @@ class StateActionProcessor:
         assert action.ndim == 2, f"Expected action shape (T, D), got {action.shape}"
         assert reference_state.ndim == 1, f"Expected state shape (D,), got {reference_state.shape}"
 
+        if action_type == ActionType.EEF_XYZ_QUAT_XYZW:
+            # DexSim dual/single-arm flat ee [xyz(3)+quat_xyzw(4)] x n_arm; proper quat
+            # relative math (the built-in EEF only handles single-arm 9/6/16-D formats).
+            return self._relative_eef_xyz_quat(action, reference_state)
+
         if action_type == ActionType.EEF:
             action_chunking = EndEffectorActionChunk.from_array(action, action_format)
             reference_frame = EndEffectorPose.from_action_format(reference_state, action_format)
@@ -677,6 +682,9 @@ class StateActionProcessor:
             f"State dim {reference_state.shape[0]} != action dim {action.shape[1]}"
         )
 
+        if action_type == ActionType.EEF_XYZ_QUAT_XYZW:
+            return self._absolute_eef_xyz_quat(action, reference_state)
+
         if action_type == ActionType.EEF:
             rel_action = EndEffectorActionChunk.from_array(action, action_format)
             reference_frame = EndEffectorPose.from_action_format(reference_state, action_format)
@@ -690,6 +698,43 @@ class StateActionProcessor:
 
         abs_action = rel_action.to_absolute_chunking(reference_frame=reference_frame)
         return abs_action.to(action_format)
+
+    def _relative_eef_xyz_quat(self, action: np.ndarray, reference_state: np.ndarray) -> np.ndarray:
+        """ABSOLUTE -> RELATIVE for flat [xyz(3)+quat_xyzw(4)] x n_arm ee (14-D dual / 7-D
+        single). Per arm: Δpos = action_pos - state_pos; Δquat = qinv(state_quat) ⊗ action_quat
+        (renormalized). Reference = reference_state (current ee). xyzw throughout."""
+        from scipy.spatial.transform import Rotation
+
+        action = np.asarray(action, dtype=np.float64)  # (T, D)
+        ref = np.asarray(reference_state, dtype=np.float64)  # (D,)
+        n_arm = action.shape[-1] // 7
+        out = action.copy()
+        for i in range(n_arm):
+            s0 = i * 7
+            sp, sq = ref[s0 : s0 + 3], ref[s0 + 3 : s0 + 7]
+            ap, aq = action[:, s0 : s0 + 3], action[:, s0 + 3 : s0 + 7]
+            dR = Rotation.from_quat(sq).inv() * Rotation.from_quat(aq)  # (T,)
+            out[:, s0 : s0 + 3] = ap - sp[None, :]
+            out[:, s0 + 3 : s0 + 7] = dR.as_quat()  # (T,4) xyzw unit
+        return out
+
+    def _absolute_eef_xyz_quat(self, action: np.ndarray, reference_state: np.ndarray) -> np.ndarray:
+        """RELATIVE -> ABSOLUTE (inverse of _relative_eef_xyz_quat).
+        action_pos = state_pos + Δpos; action_quat = state_quat ⊗ Δquat (renormalized)."""
+        from scipy.spatial.transform import Rotation
+
+        action = np.asarray(action, dtype=np.float64)
+        ref = np.asarray(reference_state, dtype=np.float64)
+        n_arm = action.shape[-1] // 7
+        out = action.copy()
+        for i in range(n_arm):
+            s0 = i * 7
+            sp, sq = ref[s0 : s0 + 3], ref[s0 + 3 : s0 + 7]
+            dp, dq = action[:, s0 : s0 + 3], action[:, s0 + 3 : s0 + 7]
+            aR = Rotation.from_quat(sq) * Rotation.from_quat(dq)  # (T,)
+            out[:, s0 : s0 + 3] = dp + sp[None, :]
+            out[:, s0 + 3 : s0 + 7] = aR.as_quat()
+        return out
 
     def __str__(self) -> str:
         return f"StateActionProcessor(modality_configs={self.modality_configs}, statistics={self.statistics}, use_percentiles={self.use_percentiles}, clip_outliers={self.clip_outliers}, apply_sincos_state_encoding={self.apply_sincos_state_encoding}, use_relative_action={self.use_relative_action})"

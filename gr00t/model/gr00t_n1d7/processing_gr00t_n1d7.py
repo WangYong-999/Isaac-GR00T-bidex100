@@ -72,7 +72,21 @@ _PROJECTOR_INDEX_GROUPS: dict[int, set[str]] = {
     2: {"libero_sim"},
     # Finetune placeholder projector; sim-eval robocasa tags piggyback on
     # `new_embodiment`.
-    10: {"new_embodiment", "robocasa_panda_omron", "robocasa_gr1_tabletop"},
+    10: {
+        "new_embodiment",
+        "robocasa_panda_omron",
+        "robocasa_gr1_tabletop",
+        "astribot_dex_sim_joint",
+        "astribot_dex_sim_ee",
+        "franka_dex_sim_joint",
+        "franka_dex_sim_ee",
+        "astribot_dex_sim_camera_ee",
+        "franka_dex_sim_camera_ee",
+        "franka_dex_sim_single_arm_joint",
+        "franka_dex_sim_single_arm_ee",
+        "franka_dex_sim_single_arm_camera_ee",
+        "dex_sim_joint",
+    },
     11: {"unitree_g1_sonic"},
     24: {"oxe_droid_relative_eef_relative_joint"},
     # Same G1 embodiment either side of the pretrain/posttrain boundary

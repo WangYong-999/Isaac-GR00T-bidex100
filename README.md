@@ -1,3 +1,5 @@
+> **BiDex-100 integration:** see [BIDEX100.md](BIDEX100.md) for environment setup, training and evaluation, or the [Document page](https://bidex-100.github.io/BiDex-100/document.html).
+
 <div align="center">
 
   <img src="media/header_compress.png" width="800" alt="NVIDIA Isaac GR00T N1.7 Header">

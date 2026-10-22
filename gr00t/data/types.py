@@ -39,6 +39,11 @@ class ActionRepresentation(Enum):
 class ActionType(Enum):
     EEF = "eef"
     NON_EEF = "non_eef"
+    # BiDex-100 dual/single-arm ee: flat [xyz(3)+quat_xyzw(4)] x n_arm (14-D dual,
+    # 7-D single). The built-in EEF type only handles single-arm 9-D/6-D/16-D formats, so
+    # this type splits the flat array into per-arm (pos+quat) and does proper quaternion
+    # relative math (Δquat = qinv(state) ⊗ action, renormalized) for rep=RELATIVE.
+    EEF_XYZ_QUAT_XYZW = "eef_xyz_quat_xyzw"
 
 
 class ActionFormat(Enum):

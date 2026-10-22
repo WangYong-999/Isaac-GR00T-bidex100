@@ -35,6 +35,7 @@ Returns messages with VLAStepData as defined in types.py.
 from collections import defaultdict
 import json
 import logging
+import os
 from pathlib import Path
 import random
 from typing import Any
@@ -170,8 +171,21 @@ class LeRobotEpisodeLoader:
             tasks_data = [json.loads(line) for line in f]
             self.tasks_map = {task["task_index"]: task["task"] for task in tasks_data}
 
-        # Load modality structure information
-        modality_path = meta_dir / LEROBOT_MODALITY_FILENAME
+        # Load modality structure information.
+        # BiDex-100 joint vs ee variants share one on-disk task dir, so each variant
+        # writes its 58D `modality.<variant>.json`. Set GR00T_MODALITY_VARIANT=joint|ee
+        # to load that variant file; fall back to the canonical `modality.json`.
+        modality_variant = os.environ.get("GR00T_MODALITY_VARIANT")
+        if modality_variant:
+            modality_path = meta_dir / LEROBOT_MODALITY_FILENAME.replace(
+                ".json", f".{modality_variant}.json"
+            )
+            assert modality_path.exists(), (
+                f"{modality_path} not found for GR00T_MODALITY_VARIANT={modality_variant}; "
+                f"run examples/BiDex-100/write_modality_json.py --variant {modality_variant} first."
+            )
+        else:
+            modality_path = meta_dir / LEROBOT_MODALITY_FILENAME
         with open(modality_path, "r") as f:
             self.modality_meta = json.load(f)
 

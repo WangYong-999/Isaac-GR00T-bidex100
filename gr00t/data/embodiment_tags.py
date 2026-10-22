@@ -142,6 +142,64 @@ class EmbodimentTag(Enum):
     Uses the custom-embodiment finetuning projector slot.
     """
 
+    ASTRIBOT_DEX_SIM_JOINT = "astribot_dex_sim_joint"
+    """
+    Astribot S1 + Sharpa dexterous hand in BiDex-100 simulation, JOINT control.
+    State/action = 58D: arm_joint_position[14] + dex_joint_position[44]
+    (right-arm-first), 3 color cameras (head/left_wrist/right_wrist).
+    Custom-embodiment finetuning projector slot.
+    """
+
+    ASTRIBOT_DEX_SIM_EE = "astribot_dex_sim_ee"
+    """
+    Astribot S1 + Sharpa dexterous hand in BiDex-100 simulation, EE control.
+    State/action = 58D: abs_end_effector[14] (pos+quat, right-arm-first) + dex_joint_position[44].
+    3 color cameras (head/left_wrist/right_wrist). ABSOLUTE ee (no delta — quaternions
+    can't be element-wise deltas). Custom-embodiment finetuning projector slot.
+    """
+
+    FRANKA_DEX_SIM_JOINT = "franka_dex_sim_joint"
+    """
+    Franka dual FR3 v2 + Sharpa dexterous hand in BiDex-100 simulation, JOINT control.
+    State/action = 58D: arm_joint_position[14] + dex_joint_position[44].
+    Same 3 color cameras as astribot_dex_sim_joint. Custom-embodiment finetuning projector slot.
+    """
+
+    FRANKA_DEX_SIM_EE = "franka_dex_sim_ee"
+    """
+    Franka dual FR3 v2 + Sharpa dexterous hand in BiDex-100 simulation, EE control.
+    State/action = 58D: abs_end_effector[14] + dex_joint_position[44]. ABSOLUTE ee.
+    Same cameras as astribot_dex_sim_ee. Custom-embodiment finetuning projector slot.
+    """
+
+    ASTRIBOT_DEX_SIM_CAMERA_EE = "astribot_dex_sim_camera_ee"
+    """
+    Astribot S1 + Sharpa hand, BiDex-100 sim, CAMERA-EE control.
+    State/action = 58D: abs_end_effector_camera[14] (head-cam optical frame) + dex_joint_position[44].
+    ABSOLUTE. Same 3 color cameras. Custom-embodiment projector slot.
+    """
+
+    FRANKA_DEX_SIM_CAMERA_EE = "franka_dex_sim_camera_ee"
+    FRANKA_DEX_SIM_SINGLE_ARM_JOINT = "franka_dex_sim_single_arm_joint"
+    FRANKA_DEX_SIM_SINGLE_ARM_EE = "franka_dex_sim_single_arm_ee"
+    FRANKA_DEX_SIM_SINGLE_ARM_CAMERA_EE = "franka_dex_sim_single_arm_camera_ee"
+    """
+    Franka dual FR3 v2 + Sharpa hand, BiDex-100 sim, CAMERA-EE control.
+    State/action = 58D: abs_end_effector_camera[14] + dex_joint_position[44]. ABSOLUTE.
+    Same cameras as astribot_dex_sim_camera_ee. Custom-embodiment projector slot.
+    """
+
+    DEX_SIM_JOINT = "dex_sim_joint"
+    """
+    UNIFIED BiDex-100 joint embodiment: franka (dual FR3 v2) and astribot (S1), both with
+    the Sharpa dexterous hand, merged into ONE tag (the two robots share the identical 58D
+    schema) so all tasks train AND infer under a single embodiment -> ONE norm stats entry.
+    State/action = 58D: arm_joint_position[14] + dex_joint_position[44].
+    3 color cameras (head/left_wrist/right_wrist). Custom-embodiment projector slot.
+    """
+
+    BIDEX_JOINT = "dex_sim_joint"  # Public BiDex-100 name; serialized checkpoint compatibility.
+
     @classmethod
     def resolve(cls, tag: "str | EmbodimentTag") -> "EmbodimentTag":
         """Resolve a string to an EmbodimentTag, case-insensitively.
@@ -217,6 +275,17 @@ POSTTRAIN_TAGS: frozenset[EmbodimentTag] = frozenset(
 FINETUNE_ONLY_TAGS: frozenset[EmbodimentTag] = frozenset(
     {
         EmbodimentTag.NEW_EMBODIMENT,
+        EmbodimentTag.ASTRIBOT_DEX_SIM_JOINT,
+        EmbodimentTag.ASTRIBOT_DEX_SIM_EE,
+        EmbodimentTag.FRANKA_DEX_SIM_JOINT,
+        EmbodimentTag.FRANKA_DEX_SIM_EE,
+        EmbodimentTag.ASTRIBOT_DEX_SIM_CAMERA_EE,
+        EmbodimentTag.FRANKA_DEX_SIM_CAMERA_EE,
+        EmbodimentTag.FRANKA_DEX_SIM_SINGLE_ARM_JOINT,
+        EmbodimentTag.FRANKA_DEX_SIM_SINGLE_ARM_EE,
+        EmbodimentTag.FRANKA_DEX_SIM_SINGLE_ARM_CAMERA_EE,
+        EmbodimentTag.DEX_SIM_JOINT,
+        EmbodimentTag.BIDEX_JOINT,
         EmbodimentTag.ROBOCASA_PANDA_OMRON,
         EmbodimentTag.ROBOCASA_GR1_TABLETOP,
     }

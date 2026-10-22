@@ -334,6 +334,15 @@ class RelativeActionLoader:
         # Convert to numpy arrays once - this is much faster than repeated pandas access
         state_data = df[state_key].values  # Shape: (episode_length, joint_dim)
         action_data = df[action_key].values  # Shape: (episode_length, joint_dim)
+        # BiDex-100 qc3 parquet stores these as Arrow variable-length list columns,
+        # which pandas reads back as a 1-D object array of per-row vectors instead of a
+        # 2-D float ndarray. The EEF relative-stats branches below index `actions[:, s:e]`
+        # (2-D), so stack object rows into a contiguous 2-D float array. No-op when the
+        # column is already a 2-D ndarray.
+        if state_data.ndim == 1:
+            state_data = np.stack(state_data)
+        if action_data.ndim == 1:
+            action_data = np.stack(action_data)
         trajectories = []
         usable_length = len(df) - self.modality_configs["action"].delta_indices[-1]
         action_delta_indices = np.array(self.modality_configs["action"].delta_indices)
@@ -355,6 +364,22 @@ class RelativeActionLoader:
                     reference_frame=reference_frame
                 )
                 trajectories.append(np.stack([p.joints for p in traj.poses], dtype=np.float32))
+            elif self.action_config.type == ActionType.EEF_XYZ_QUAT_XYZW:
+                # DexSim dual/single-arm flat ee [xyz(3)+quat_xyzw(4)] x n_arm: per-arm
+                # Δpos = action_pos - state_pos; Δquat = qinv(state_quat) ⊗ action_quat
+                # (renormalized). Mirrors StateActionProcessor._relative_eef_xyz_quat.
+                from scipy.spatial.transform import Rotation
+
+                n_arm = last_state.shape[0] // 7
+                chunk = np.empty_like(actions, dtype=np.float64)
+                for j in range(n_arm):
+                    s0 = j * 7
+                    sp, sq = last_state[s0 : s0 + 3], last_state[s0 + 3 : s0 + 7]
+                    ap, aq = actions[:, s0 : s0 + 3], actions[:, s0 + 3 : s0 + 7]
+                    dR = Rotation.from_quat(sq).inv() * Rotation.from_quat(aq)
+                    chunk[:, s0 : s0 + 3] = ap - sp[None, :]
+                    chunk[:, s0 + 3 : s0 + 7] = dR.as_quat()
+                trajectories.append(chunk.astype(np.float32))
             else:
                 raise ValueError(f"Unknown ActionType: {self.action_config.type}")
         return trajectories
